@@ -30,7 +30,7 @@ impl Scheduler {
 
 	fn get_task_by_name(&self, task_name: &String) -> Option<&CustomTask> {
 		for task in &self.tasks {
-			if task.id.eq(task_name) {
+			if task.get_id().eq(task_name) {
 				return Some(&task);
 			}
 		}
@@ -39,7 +39,7 @@ impl Scheduler {
 
 	fn get_mut_task_by_name(&mut self, task_name: &String) -> Option<&mut CustomTask> {
 		for task in &mut self.tasks {
-			if task.id.eq(task_name) {
+			if task.get_id().eq(task_name) {
 				return Some(task);
 			}
 		}
@@ -48,7 +48,7 @@ impl Scheduler {
 
 	fn get_task_dependencies(&self, task_ref: &CustomTask) -> Vec<&CustomTask> {
 		let mut dependencies: Vec<&CustomTask> = vec!{};
-		for dep_name in &task_ref.dependencies {
+		for dep_name in &task_ref.get_dependencies() {
 			match self.get_task_by_name(dep_name) {
 				Some(dep_ref) => dependencies.push(dep_ref),
 				None => {},
@@ -60,7 +60,7 @@ impl Scheduler {
 	fn get_task_successors(&self, task_ref: &CustomTask) -> Vec<&CustomTask> {
 		let mut successors: Vec<&CustomTask> = vec!{};
 		for task in &self.tasks {
-			if task.dependencies.contains(&task_ref.id) {
+			if task.get_dependencies().contains(&task_ref.get_id()) {
 				successors.push(&task);
 			}
 		}
@@ -75,22 +75,24 @@ impl Scheduler {
 				let deps = self.get_task_dependencies(&task);
 				let mut max_dep_ef = 0;
 				for dep in deps {
-					if dep.early_finish == -1 {
+					if dep.get_early_finish() == -1 {
 						continue;
 					}
-					if dep.early_finish > max_dep_ef {
-						max_dep_ef = dep.early_finish;
+					if dep.get_early_finish() > max_dep_ef {
+						max_dep_ef = dep.get_early_finish();
 					}
 				}
 
 				let successor_count = self.get_task_successors(&task).len();
-				let mut original_task = self.get_mut_task_by_name(&task.id).unwrap();
-				original_task.early_start = max_dep_ef;
-				original_task.early_finish = max_dep_ef + original_task.duration as i64;
+				let original_task = self.get_mut_task_by_name(&task.get_id()).unwrap();
+				original_task.set_early_start(max_dep_ef);
+				original_task.set_early_finish(
+					max_dep_ef + original_task.get_duration() as i64
+				);
 
 				if successor_count == 0 {
-					original_task.late_finish = original_task.early_finish;
-					original_task.late_start = original_task.early_start;
+					original_task.set_late_finish(original_task.get_early_finish());
+					original_task.set_late_start(original_task.get_early_start());
 				}
 				sorting_list.remove(task_idx);
 				//println!("ESEF calculated: \n{:?}", original_task);
@@ -109,16 +111,19 @@ impl Scheduler {
 				if successors.len() > 0 {
 					let mut min_successor_ls = 1 << 32;
 					for successor in successors {
-						if successor.late_start == -1 {
+						if successor.get_late_start() == -1 {
 							continue;
 						}
-						if successor.late_start < min_successor_ls {
-							min_successor_ls = successor.late_start;
+						if successor.get_late_start() < min_successor_ls {
+							min_successor_ls = successor.get_late_start();
 						}
 					}
-					let mut original_task = self.get_mut_task_by_name(&task.id).unwrap();
-					original_task.late_finish = min_successor_ls;
-					original_task.late_start = min_successor_ls - original_task.duration as i64;
+					let original_task
+						= self.get_mut_task_by_name(&task.get_id()).unwrap();
+					original_task.set_late_finish(min_successor_ls);
+					original_task.set_late_start(
+						min_successor_ls - original_task.get_duration() as i64
+					);
 					//println!("LSLF calculated: \n{:?}", original_task);
 				}
 				sorting_list.remove(task_idx);
@@ -213,7 +218,7 @@ impl Scheduler {
 		let mut ef_list: Vec<i64> = vec!{0};
 		let mut max_parallel = 0;
 		for task in &self.tasks {
-			ef_list.push(task.early_finish);
+			ef_list.push(task.get_early_finish());
 		}
 		ef_list.dedup();
 		ef_list.sort();
@@ -222,8 +227,8 @@ impl Scheduler {
 			let section_end = ef_list[ef_idx + 1];
 			let section_parallel = self.tasks.iter().filter(
 				|task|
-				task.early_start <= section_start
-				&& section_end <= task.early_finish
+				task.get_early_start() <= section_start
+				&& section_end <= task.get_early_finish()
 				).collect::<Vec<&CustomTask>>();
 			if section_parallel.len() > max_parallel {
 				max_parallel = section_parallel.len();

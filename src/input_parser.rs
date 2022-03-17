@@ -72,7 +72,7 @@ pub fn parse_input_file(filename: &String) -> Result<Vec<CustomTask>, String> {
 }
 
 pub fn find_pattern_error(error_str: &str, contents: String) -> String {
-	let mut output: String;
+	let output: String;
 	let error_lines: Vec<&str> = error_str.split('\n').collect();
 	for error_line in error_lines {
 		if error_line.len() > 0 {
