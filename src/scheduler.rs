@@ -242,7 +242,6 @@ impl Scheduler {
 				, self.get_parallelism()
 			);
 		println!("{}", output);
-		crate::print_output(&output);
 		output
 	}
 

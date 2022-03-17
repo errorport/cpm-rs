@@ -83,7 +83,6 @@ pub fn find_pattern_error(error_str: &str, contents: String) -> String {
 			let line_num = lines.len();
 			let column = lines.last().unwrap().len() + 1;
 			output = format!("line {}, column {}\n", line_num, column);
-			crate::print_output(&output);
 			return output;
 		}
 	}
