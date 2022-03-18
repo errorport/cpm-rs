@@ -12,6 +12,7 @@ Single crate for Critical Path Method calculation.
 
 ## Future functionality
 
+- Time unit type templates. (integer / float / std::time)
 - Dependency cycle check.
 - Shiftable tasks.
 - Graph visualization.
