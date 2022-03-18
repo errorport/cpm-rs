@@ -49,6 +49,7 @@ impl Scheduler {
 		self.state = SchedulerState::Edited;
 	}
 
+	/// Gets a task by it's name.
 	pub fn get_task_by_name(&self, task_name: &String) -> Option<&CustomTask> {
 		for task in &self.tasks {
 			if task.get_id().eq(task_name) {
@@ -69,6 +70,7 @@ impl Scheduler {
 		None
 	}
 
+	/// Gets dependencies of a task.
 	pub fn get_task_dependencies(&self, task_ref: &CustomTask) -> Vec<&CustomTask> {
 		let mut dependencies: Vec<&CustomTask> = vec!{};
 		for dep_name in &task_ref.get_dependencies() {
@@ -80,6 +82,7 @@ impl Scheduler {
 		dependencies
 	}
 
+	/// Gets successors of a task.
 	pub fn get_task_successors(&self, task_ref: &CustomTask) -> Vec<&CustomTask> {
 		let mut successors: Vec<&CustomTask> = vec!{};
 		for task in &self.tasks {

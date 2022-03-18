@@ -1,12 +1,20 @@
 
+/// Represents a task a.k.a. a node in a batch graph.
 #[derive(Clone, Debug)]
 pub struct CustomTask {
+	/// Identifier of a task. Should be unique.
 	id: String,
+	/// Duration of a task.
 	duration: u32,
+	/// Earlyiest possible start for the task. (Calculated)
 	early_start: i64,
+	/// Earlyiest possible finish for the task. (Calculated)
 	early_finish: i64,
+	/// Latest possible start for the task. (Calculated)
 	late_start: i64,
+	/// Latest possible finish for the task. (Calculated)
 	late_finish: i64,
+	/// Task dependency IDs.
 	dependencies: Vec<String>
 }
 
