@@ -1,15 +1,26 @@
-/// The scheduler implements the basic functionality to
-/// calculate critical paths plus the number of
-/// maximum parallel jobs at a time.
-///
 
 use crate::customtask::CustomTask;
 use crate::path::Path;
 
+/// Different state indicators of Scheduler.
+#[derive(Debug, PartialEq)]
+enum SchedulerState {
+	/// Uninitialized.
+	Unknown,
+	/// Something has been changed, it should be recalculated.
+	Edited,
+	/// All calculations are finished, results can be extracted.
+	Ready,
+}
+
+/// The scheduler implements the basic functionality to
+/// calculate critical paths plus the number of
+/// maximum parallel jobs at a time.
 #[derive(Debug)]
 pub struct Scheduler {
 	tasks: Vec<CustomTask>,
 	critical_paths: Vec<Path>,
+	state: SchedulerState,
 }
 
 impl Scheduler {
@@ -17,22 +28,31 @@ impl Scheduler {
 		Scheduler {
 			tasks: vec!{},
 			critical_paths: vec!{},
+			state: SchedulerState::Unknown,
 		}
 	}
 
+	/// Ignites all the calculations.
 	pub fn schedule(&mut self, task_list: Vec<CustomTask>) {
 		self.fill_tasklist(task_list);
+		self.calculate();
+		self.compose_output();
+	}
+
+	/// Recalculate all parameters without providing new tasks.
+	pub fn calculate(&mut self) {
 		self.calculate_es_ef();
 		self.calculate_ls_lf();
 		self.find_critical_paths();
-		self.compose_output();
+		self.state = SchedulerState::Ready;
 	}
 
 	fn fill_tasklist(&mut self, task_list: Vec<CustomTask>) {
 		self.tasks = task_list;
+		self.state = SchedulerState::Edited;
 	}
 
-	fn get_task_by_name(&self, task_name: &String) -> Option<&CustomTask> {
+	pub fn get_task_by_name(&self, task_name: &String) -> Option<&CustomTask> {
 		for task in &self.tasks {
 			if task.get_id().eq(task_name) {
 				return Some(&task);
@@ -41,16 +61,18 @@ impl Scheduler {
 		None
 	}
 
-	fn get_mut_task_by_name(&mut self, task_name: &String) -> Option<&mut CustomTask> {
+	/// This one makes the scheduler get the Edited state if the task is found.
+	pub fn get_mut_task_by_name(&mut self, task_name: &String) -> Option<&mut CustomTask> {
 		for task in &mut self.tasks {
 			if task.get_id().eq(task_name) {
+				self.state = SchedulerState::Edited;
 				return Some(task);
 			}
 		}
 		None
 	}
 
-	fn get_task_dependencies(&self, task_ref: &CustomTask) -> Vec<&CustomTask> {
+	pub fn get_task_dependencies(&self, task_ref: &CustomTask) -> Vec<&CustomTask> {
 		let mut dependencies: Vec<&CustomTask> = vec!{};
 		for dep_name in &task_ref.get_dependencies() {
 			match self.get_task_by_name(dep_name) {
@@ -61,7 +83,7 @@ impl Scheduler {
 		dependencies
 	}
 
-	fn get_task_successors(&self, task_ref: &CustomTask) -> Vec<&CustomTask> {
+	pub fn get_task_successors(&self, task_ref: &CustomTask) -> Vec<&CustomTask> {
 		let mut successors: Vec<&CustomTask> = vec!{};
 		for task in &self.tasks {
 			if task.get_dependencies().contains(&task_ref.get_id()) {
@@ -137,7 +159,8 @@ impl Scheduler {
 		}
 	}
 
-	fn get_startpoints(&self) -> Vec<&CustomTask> {
+	/// Get all the entry points of the graph.
+	pub fn get_startpoints(&self) -> Vec<&CustomTask> {
 		let mut startpoints: Vec<&CustomTask> = vec!{};
 		for task in &self.tasks {
 			if self.get_task_dependencies(&task).len() == 0 {
@@ -147,7 +170,8 @@ impl Scheduler {
 		startpoints
 	}
 
-	fn get_endpoints(&self) -> Vec<&CustomTask> {
+	/// Get all the end points of the graph.
+	pub fn get_endpoints(&self) -> Vec<&CustomTask> {
 		let mut endpoints: Vec<&CustomTask> = vec!{};
 		for task in &self.tasks {
 			if self.get_task_successors(&task).len() == 0 {
@@ -157,7 +181,8 @@ impl Scheduler {
 		endpoints
 	}
 
-	fn get_paths_from_task(&self, start_point: &CustomTask, level: u32) -> Vec<Path> {
+	/// Returns all paths that are able to trace from the given task.
+	pub fn get_paths_from_task(&self, start_point: &CustomTask, level: u32) -> Vec<Path> {
 		let mut head = start_point;
 		let mut base_path = Path::new();
 		let mut found_paths: Vec<Path> = vec!{};
@@ -187,7 +212,10 @@ impl Scheduler {
 		found_paths
 	}
 
-	fn get_all_paths(&self) -> Vec<Path> {
+	/// Gets all the paths in the graph.
+	/// Attention! Does not check the possible cycles in dependencies!
+	/// TODO: make it parallel.
+	pub fn get_all_paths(&self) -> Vec<Path> {
 		let mut paths: Vec<Path> = vec!{};
 		let endpoints = self.get_endpoints();
 		for task in endpoints {
@@ -218,29 +246,37 @@ impl Scheduler {
 		//println!("Critical paths: {:?}", self.critical_paths.len());
 	}
 
-	fn get_parallelism(&self) -> u32 {
-		let mut ef_list: Vec<i64> = vec!{0};
-		let mut max_parallel = 0;
-		for task in &self.tasks {
-			ef_list.push(task.get_early_finish());
-		}
-		ef_list.dedup();
-		ef_list.sort();
-		for ef_idx in 0..ef_list.len() - 1 {
-			let section_start = ef_list[ef_idx];
-			let section_end = ef_list[ef_idx + 1];
-			let section_parallel = self.tasks.iter().filter(
-				|task|
-				task.get_early_start() <= section_start
-				&& section_end <= task.get_early_finish()
-				).collect::<Vec<&CustomTask>>();
-			if section_parallel.len() > max_parallel {
-				max_parallel = section_parallel.len();
-				//println!("section: {} .. {}", section_start, section_end);
-				//println!("section tasks: {:?}", section_parallel);
+	/// Calculates the maximum number of parallel jobs at a time.
+	/// Scheduler has to be in ready state.
+	pub fn get_parallelism(&self) -> Result<u32, String> {
+		if self.state == SchedulerState::Ready {
+			let mut ef_list: Vec<i64> = vec!{0};
+			let mut max_parallel = 0;
+			for task in &self.tasks {
+				ef_list.push(task.get_early_finish());
 			}
+			ef_list.dedup();
+			ef_list.sort();
+			for ef_idx in 0..ef_list.len() - 1 {
+				let section_start = ef_list[ef_idx];
+				let section_end = ef_list[ef_idx + 1];
+				let section_parallel = self.tasks.iter().filter(
+					|task|
+					task.get_early_start() <= section_start
+					&& section_end <= task.get_early_finish()
+					).collect::<Vec<&CustomTask>>();
+				if section_parallel.len() > max_parallel {
+					max_parallel = section_parallel.len();
+					//println!("section: {} .. {}", section_start, section_end);
+					//println!("section tasks: {:?}", section_parallel);
+				}
+			}
+			return Ok(max_parallel.try_into().unwrap());
+		} else {
+			return Err(
+				format!("Scheduler is in state {:?} instead of being ready.", self.state)
+			);
 		}
-		max_parallel.try_into().unwrap()
 	}
 
 	fn compose_output(&self) -> String {
@@ -248,7 +284,7 @@ impl Scheduler {
 			format!("Critical: {}\nMinimum: {}\nParallelism: {}\n"
 				, self.critical_paths[0].get_path_string()
 				, self.critical_paths[0].get_dur()
-				, self.get_parallelism()
+				, self.get_parallelism().unwrap()
 			);
 		println!("{}", output);
 		output

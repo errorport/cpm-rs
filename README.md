@@ -2,6 +2,8 @@
 
 Single crate for Critical Path Method calculation.
 
+[![Crates.io](https://img.shields.io/crates/v/cpm-rs.svg)](https://crates.io/crates/cpm-rs)
+
 ## Functionality
 
 - File parser for predefined tasks. (May be removed later.)
@@ -10,9 +12,16 @@ Single crate for Critical Path Method calculation.
 
 ## Future functionality
 
-- Shiftable tasks, critical path recalculation.
+- Dependency cycle check.
+- Shiftable tasks.
 - Graph visualization.
 - Crate features.
+
+## Limitations
+
+- Does not check cirecles in task dependencies.
+- Does not utilize multiple utilize multiple threads for path calculations.
+- Does not have a depth / performance limit on recursive path calculations.
 
 ## Usage
 
