@@ -19,7 +19,6 @@ enum SchedulerState {
 #[derive(Debug)]
 pub struct Scheduler {
 	tasks: Vec<CustomTask>,
-	critical_paths: Vec<Path>,
 	state: SchedulerState,
 }
 
@@ -27,7 +26,6 @@ impl Scheduler {
 	pub fn new() -> Self {
 		Scheduler {
 			tasks: vec!{},
-			critical_paths: vec!{},
 			state: SchedulerState::Unknown,
 		}
 	}
@@ -36,14 +34,13 @@ impl Scheduler {
 	pub fn schedule(&mut self, task_list: Vec<CustomTask>) {
 		self.fill_tasklist(task_list);
 		self.calculate();
-		self.compose_output();
+		self.print_output();
 	}
 
 	/// Recalculate all parameters without providing new tasks.
 	pub fn calculate(&mut self) {
 		self.calculate_es_ef();
 		self.calculate_ls_lf();
-		self.find_critical_paths();
 		self.state = SchedulerState::Ready;
 	}
 
@@ -224,9 +221,10 @@ impl Scheduler {
 		paths
 	}
 
-	fn find_critical_paths(&mut self) {
+	pub fn get_critical_paths(&self) -> Vec<Path> {
 		let mut paths = self.get_all_paths();
 		let mut candidates: Vec<Path> = vec!{};
+		let mut critical_paths: Vec<Path> = vec!{};
 		let mut max_length: u32 = 0;
 		for path in &mut paths {
 			// reverse paths
@@ -240,9 +238,10 @@ impl Scheduler {
 		}
 		for path in candidates {
 			if path.get_dur() == max_length {
-				self.critical_paths.push(path);
+				critical_paths.push(path);
 			}
 		}
+		critical_paths
 		//println!("Critical paths: {:?}", self.critical_paths.len());
 	}
 
@@ -279,15 +278,14 @@ impl Scheduler {
 		}
 	}
 
-	fn compose_output(&self) -> String {
-		let output =
-			format!("Critical: {}\nMinimum: {}\nParallelism: {}\n"
-				, self.critical_paths[0].get_path_string()
-				, self.critical_paths[0].get_dur()
-				, self.get_parallelism().unwrap()
-			);
-		println!("{}", output);
-		output
+	fn print_output(&self) {
+		let critical_paths = self.get_critical_paths();
+		println!("Critical paths: {}", critical_paths.len());
+		for path in &critical_paths {
+			println!("\tCritical path: {}", path.get_path_string());
+			println!("\tMinimum time: {}", path.get_dur());
+		}
+		println!("Number of maximum parallel jobs: {}", self.get_parallelism().unwrap());
 	}
 
 }
