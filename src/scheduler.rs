@@ -1,3 +1,7 @@
+/// The scheduler implements the basic functionality to
+/// calculate critical paths plus the number of
+/// maximum parallel jobs at a time.
+///
 
 use crate::customtask::CustomTask;
 use crate::path::Path;

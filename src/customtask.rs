@@ -39,6 +39,18 @@ impl CustomTask {
 		self.dependencies.clone()
 	}
 
+	pub fn add_dependency(&mut self, _dependency: String) {
+		self.dependencies.push(_dependency);
+	}
+
+	pub fn add_dependencies(&mut self, _dependencies: &mut Vec<String>) {
+		self.dependencies.append(_dependencies);
+	}
+
+	pub fn set_dependencies(&mut self, _dependencies: Vec<String>) {
+		self.dependencies = _dependencies;
+	}
+
 	pub fn get_early_start(&self) -> i64 {
 		self.early_start
 	}
