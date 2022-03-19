@@ -13,7 +13,12 @@ fn main() {
 		exit(1);
 	}
 	match input_parser::parse_input_file(&args[1]) {
-		Ok(task_list) => { scheduler.schedule(task_list); },
+		Ok(task_list) => {
+			match scheduler.schedule(task_list) {
+				Ok(()) => {},
+				Err(e) => {eprintln!("Error: {}", e); exit(1);},
+			}
+		},
 		Err(e) => {eprintln!("Error: {}", e); exit(1);},
 	}
 }

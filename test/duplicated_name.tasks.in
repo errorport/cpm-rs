@@ -1,0 +1,9 @@
+A(10)
+B(20) after [A]
+C(5) after [B]
+C(7) after [A]
+D(10) after [C]
+F(15) after [A]
+G(5) after [F, C]
+H(15) after [A]
+E(20) after [G, D, H]

@@ -1,4 +1,4 @@
-
+use std::collections::HashMap;
 use crate::customtask::CustomTask;
 use crate::path::Path;
 
@@ -18,23 +18,28 @@ enum SchedulerState {
 /// maximum parallel jobs at a time.
 #[derive(Debug)]
 pub struct Scheduler {
-	tasks: Vec<CustomTask>,
+	tasks: HashMap<String, CustomTask>,
 	state: SchedulerState,
 }
 
 impl Scheduler {
 	pub fn new() -> Self {
 		Scheduler {
-			tasks: vec!{},
+			tasks: HashMap::new(),
 			state: SchedulerState::Unknown,
 		}
 	}
 
 	/// Ignites all the calculations.
-	pub fn schedule(&mut self, task_list: Vec<CustomTask>) {
-		self.fill_tasklist(task_list);
-		self.calculate();
-		self.print_output();
+	pub fn schedule(&mut self, task_list: Vec<CustomTask>) -> Result<(), String>{
+		match self.fill_tasklist(task_list) {
+			Ok(_) => {
+				self.calculate();
+				self.print_output();
+				return Ok(());
+			},
+			Err(e) => { return Err(e); },
+		}
 	}
 
 	/// Recalculate all parameters without providing new tasks.
@@ -44,30 +49,29 @@ impl Scheduler {
 		self.state = SchedulerState::Ready;
 	}
 
-	fn fill_tasklist(&mut self, task_list: Vec<CustomTask>) {
-		self.tasks = task_list;
+	/// Sets up a list of tasks, overwriting the already listed ones.
+	pub fn fill_tasklist(&mut self, task_list: Vec<CustomTask>) -> Result<(), String>{
 		self.state = SchedulerState::Edited;
+		let mut new_tasks: HashMap<String, CustomTask> = HashMap::new();
+		for task in &task_list {
+			if new_tasks.contains_key(&task.get_id()) {
+				return Err(format!("task ID duplication: {}", task.get_id()));
+			} else {
+				new_tasks.insert(task.get_id(), task.clone());
+			}
+		}
+		self.tasks = new_tasks;
+		Ok(())
 	}
 
 	/// Gets a task by it's name.
 	pub fn get_task_by_name(&self, task_name: &String) -> Option<&CustomTask> {
-		for task in &self.tasks {
-			if task.get_id().eq(task_name) {
-				return Some(&task);
-			}
-		}
-		None
+		self.tasks.get(task_name)
 	}
 
 	/// This one makes the scheduler get the Edited state if the task is found.
 	pub fn get_mut_task_by_name(&mut self, task_name: &String) -> Option<&mut CustomTask> {
-		for task in &mut self.tasks {
-			if task.get_id().eq(task_name) {
-				self.state = SchedulerState::Edited;
-				return Some(task);
-			}
-		}
-		None
+		self.tasks.get_mut(task_name)
 	}
 
 	/// Gets dependencies of a task.
@@ -85,7 +89,7 @@ impl Scheduler {
 	/// Gets successors of a task.
 	pub fn get_task_successors(&self, task_ref: &CustomTask) -> Vec<&CustomTask> {
 		let mut successors: Vec<&CustomTask> = vec!{};
-		for task in &self.tasks {
+		for (_, task) in &self.tasks {
 			if task.get_dependencies().contains(&task_ref.get_id()) {
 				successors.push(&task);
 			}
@@ -93,67 +97,92 @@ impl Scheduler {
 		successors
 	}
 
+	// TODO: optimize
 	fn calculate_es_ef(&mut self) {
 		let mut sorting_list = self.tasks.clone();
 		loop {
-			for task_idx in 0..sorting_list.len() {
-				let task = &sorting_list[task_idx];
+			for (id, task) in sorting_list.clone() {
+				//println!("Task taken: {}", id);
 				let deps = self.get_task_dependencies(&task);
-				let mut max_dep_ef = 0;
-				for dep in deps {
-					if dep.get_early_finish() == -1 {
+				let successor_count = self.get_task_successors(&task).len();
+
+				if deps.len() == 0 {
+					let original_task = self.get_mut_task_by_name(&id).unwrap();
+					original_task.set_early_start(0);
+					original_task.set_early_finish(
+						original_task.get_duration() as i64
+					);
+					//println!("ESEF SP calculated: \n{:?}", self.get_task_by_name(&id));
+				} else {
+					let mut max_dep_ef = 0;
+					let mut invalid_deps = 0;
+					for dep in deps {
+						if dep.get_early_finish() < 0 {
+							invalid_deps += 1;
+							break;
+						}
+						if dep.get_early_finish() > max_dep_ef {
+							max_dep_ef = dep.get_early_finish();
+						}
+					}
+					//println!("Invalid deps: {}", invalid_deps);
+					if invalid_deps == 0 {
+						let original_task = self.get_mut_task_by_name(&id).unwrap();
+						original_task.set_early_start(max_dep_ef);
+						original_task.set_early_finish(
+							max_dep_ef + original_task.get_duration() as i64
+						);
+						//println!("ESEF calculated: \n{:?}", self.get_task_by_name(&id));
+					} else {
 						continue;
 					}
-					if dep.get_early_finish() > max_dep_ef {
-						max_dep_ef = dep.get_early_finish();
-					}
 				}
-
-				let successor_count = self.get_task_successors(&task).len();
-				let original_task = self.get_mut_task_by_name(&task.get_id()).unwrap();
-				original_task.set_early_start(max_dep_ef);
-				original_task.set_early_finish(
-					max_dep_ef + original_task.get_duration() as i64
-				);
-
 				if successor_count == 0 {
+					let original_task = self.get_mut_task_by_name(&id).unwrap();
 					original_task.set_late_finish(original_task.get_early_finish());
 					original_task.set_late_start(original_task.get_early_start());
+					//println!("ESEF EP calculated: \n{:?}", self.get_task_by_name(&id));
 				}
-				sorting_list.remove(task_idx);
-				//println!("ESEF calculated: \n{:?}", original_task);
+				sorting_list.remove(&id);
 				break;
 			}
 			if sorting_list.len() == 0 { break; }
 		}
 	}
 
+	// TODO: optimize
 	fn calculate_ls_lf(&mut self) {
 		let mut sorting_list = self.tasks.clone();
 		loop {
-			for task_idx in (0..sorting_list.len()).rev() {
-				let task = &sorting_list[task_idx];
+			for (id, task) in sorting_list.clone() {
 				let successors = self.get_task_successors(&task);
+				let mut invalid_successors = 0;
 				if successors.len() > 0 {
 					let mut min_successor_ls = 1 << 32;
 					for successor in successors {
 						if successor.get_late_start() == -1 {
-							continue;
+							invalid_successors += 1;
+							break;
 						}
 						if successor.get_late_start() < min_successor_ls {
 							min_successor_ls = successor.get_late_start();
 						}
 					}
-					let original_task
-						= self.get_mut_task_by_name(&task.get_id()).unwrap();
-					original_task.set_late_finish(min_successor_ls);
-					original_task.set_late_start(
-						min_successor_ls - original_task.get_duration() as i64
-					);
-					//println!("LSLF calculated: \n{:?}", original_task);
+					if invalid_successors == 0 {
+						let original_task
+							= self.get_mut_task_by_name(&task.get_id()).unwrap();
+						original_task.set_late_finish(min_successor_ls);
+						original_task.set_late_start(
+							min_successor_ls - original_task.get_duration() as i64
+						);
+						//println!("LSLF calculated: \n{:?}", original_task);
+						sorting_list.remove(&id);
+						break;
+					}
+				} else {
+					sorting_list.remove(&id);
+					break;
 				}
-				sorting_list.remove(task_idx);
-				break;
 			}
 			if sorting_list.len() == 0 { break; }
 		}
@@ -162,7 +191,7 @@ impl Scheduler {
 	/// Get all the entry points of the graph.
 	pub fn get_startpoints(&self) -> Vec<&CustomTask> {
 		let mut startpoints: Vec<&CustomTask> = vec!{};
-		for task in &self.tasks {
+		for (_, task) in &self.tasks {
 			if self.get_task_dependencies(&task).len() == 0 {
 				startpoints.push(&task);
 			}
@@ -173,7 +202,7 @@ impl Scheduler {
 	/// Get all the end points of the graph.
 	pub fn get_endpoints(&self) -> Vec<&CustomTask> {
 		let mut endpoints: Vec<&CustomTask> = vec!{};
-		for task in &self.tasks {
+		for (_, task) in &self.tasks {
 			if self.get_task_successors(&task).len() == 0 {
 				endpoints.push(&task);
 			}
@@ -254,7 +283,7 @@ impl Scheduler {
 		if self.state == SchedulerState::Ready {
 			let mut ef_list: Vec<i64> = vec!{0};
 			let mut max_parallel = 0;
-			for task in &self.tasks {
+			for (_, task) in &self.tasks {
 				ef_list.push(task.get_early_finish());
 			}
 			ef_list.dedup();
@@ -263,10 +292,10 @@ impl Scheduler {
 				let section_start = ef_list[ef_idx];
 				let section_end = ef_list[ef_idx + 1];
 				let section_parallel = self.tasks.iter().filter(
-					|task|
+					| (_, task) |
 					task.get_early_start() <= section_start
 					&& section_end <= task.get_early_finish()
-					).collect::<Vec<&CustomTask>>();
+					).collect::<Vec<(&String, &CustomTask)>>();
 				if section_parallel.len() > max_parallel {
 					max_parallel = section_parallel.len();
 					//println!("section: {} .. {}", section_start, section_end);
@@ -286,7 +315,7 @@ impl Scheduler {
 		println!("Critical paths: {}", critical_paths.len());
 		for path in &critical_paths {
 			println!("\tCritical path: {}", path.get_path_string());
-			println!("\tMinimum time: {}", path.get_dur());
+			println!("\tPath duration: {}", path.get_dur());
 		}
 		println!("Number of maximum parallel jobs: {}", self.get_parallelism().unwrap());
 	}

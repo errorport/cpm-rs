@@ -15,7 +15,7 @@ pub struct CustomTask {
 	/// Latest possible finish for the task. (Calculated)
 	late_finish: i64,
 	/// Task dependency IDs.
-	dependencies: Vec<String>
+	dependencies: Vec<String>,
 }
 
 impl CustomTask {
