@@ -31,15 +31,10 @@ impl Scheduler {
 	}
 
 	/// Ignites all the calculations.
-	pub fn schedule(&mut self, task_list: Vec<CustomTask>) -> Result<(), String>{
-		match self.fill_tasklist(task_list) {
-			Ok(_) => {
-				self.calculate();
-				self.print_output();
-				return Ok(());
-			},
-			Err(e) => { return Err(e); },
-		}
+	pub fn schedule(&mut self) -> Result<(), String>{
+		self.calculate();
+		self.print_output();
+		return Ok(());
 	}
 
 	/// Recalculate all parameters without providing new tasks.
@@ -49,8 +44,15 @@ impl Scheduler {
 		self.state = SchedulerState::Ready;
 	}
 
+	pub fn add_task(&mut self, task: CustomTask) -> Result<(), String> {
+		match self.check_task_duplication(&task) {
+			Ok(_) => { self.tasks.insert(task.get_id(), task); return Ok(()); },
+			Err(e) => { return Err(format!("Failed to add task: {}", e)); }
+		}
+	}
+
 	/// Sets up a list of tasks, overwriting the already listed ones.
-	pub fn fill_tasklist(&mut self, task_list: Vec<CustomTask>) -> Result<(), String>{
+	pub fn fill_tasklist(&mut self, task_list: Vec<CustomTask>) -> Result<(), String> {
 		self.state = SchedulerState::Edited;
 		let mut new_tasks: HashMap<String, CustomTask> = HashMap::new();
 		for task in &task_list {
@@ -62,6 +64,14 @@ impl Scheduler {
 		}
 		self.tasks = new_tasks;
 		Ok(())
+	}
+
+	fn check_task_duplication(&self, ref_task: &CustomTask) -> Result<(), String> {
+		if self.tasks.contains_key(&ref_task.get_id()) {
+			return Err(format!("task ID is already added: {}", ref_task.get_id()));
+		} else {
+			return Ok(());
+		}
 	}
 
 	/// Gets a task by it's name.
