@@ -140,9 +140,16 @@ where T: From<i8>
 				let successor_count = self.get_task_successors(&task).len();
 
 				if deps.len() == 0 {
-					let original_task = self.get_mut_task_by_name(&id).unwrap();
-					original_task.set_early_start(0.into());
-					original_task.set_early_finish(original_task.get_duration());
+					match self.get_mut_task_by_name(&id) {
+						None => {}, // TODO
+						Some(original_task) => {
+							original_task.set_early_start(0.into())
+								.expect("Could not set early start.");
+							original_task.set_early_finish(
+								original_task.get_duration()
+							).expect("Could not set early finish.");
+						}
+					}
 					//println!("ESEF SP calculated: \n{:?}", self.get_task_by_name(&id));
 				} else {
 					let mut max_dep_ef: T = 0.into();
@@ -158,11 +165,16 @@ where T: From<i8>
 					}
 					//println!("Invalid deps: {}", invalid_deps);
 					if invalid_deps == 0 {
-						let original_task = self.get_mut_task_by_name(&id).unwrap();
-						original_task.set_early_start(max_dep_ef);
-						original_task.set_early_finish(
-							max_dep_ef + original_task.get_duration()
-						);
+						match self.get_mut_task_by_name(&id) {
+							None => {},
+							Some(original_task) => {
+								original_task.set_early_start(max_dep_ef)
+									.expect("Could not set early start.");
+								original_task.set_early_finish(
+									max_dep_ef + original_task.get_duration()
+								).expect("Could not set early finish.");
+							}
+						}
 						//println!("ESEF calculated: \n{:?}", self.get_task_by_name(&id));
 					} else {
 						continue;
@@ -170,13 +182,17 @@ where T: From<i8>
 				}
 				if successor_count == 0 {
 					// TODO check these unwraps
-					let original_task = self.get_mut_task_by_name(&id).unwrap();
-					original_task.set_late_finish(
-						original_task.get_early_finish().unwrap()
-					);
-					original_task.set_late_start(
-						original_task.get_early_start().unwrap()
-					);
+					match self.get_mut_task_by_name(&id) {
+						None => { },
+						Some(original_task) => {
+							original_task.set_late_finish(
+								original_task.get_early_finish().unwrap()
+							).expect("Could not set late finish.");
+							original_task.set_late_start(
+								original_task.get_early_start().unwrap()
+							).expect("Could not set late start.");
+						}
+					}
 					//println!("ESEF EP calculated: \n{:?}", self.get_task_by_name(&id));
 				}
 				sorting_list.remove(&id);
@@ -211,12 +227,16 @@ where T: From<i8>
 						}
 					}
 					if invalid_successors == 0 {
-						let original_task
-							= self.get_mut_task_by_name(&task.get_id()).unwrap();
-						original_task.set_late_finish(min_successor_ls);
-						original_task.set_late_start(
-							min_successor_ls - original_task.get_duration()
-						);
+						match self.get_mut_task_by_name(&task.get_id()) {
+							None => {}, // TODO
+							Some(original_task) => {
+								original_task.set_late_finish(min_successor_ls)
+									.expect("Could not set late finish.");
+								original_task.set_late_start(
+									min_successor_ls - original_task.get_duration()
+								).expect("Could not set late start.");
+							}
+						}
 						//println!("LSLF calculated: \n{:?}", original_task);
 						sorting_list.remove(&id);
 						break;

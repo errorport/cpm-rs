@@ -28,28 +28,6 @@ where T: From<i8>
 	dependencies: Vec<String>,
 }
 
-/*
-impl <T> CustomTask<T>
-where T: std::clone::Clone
-	+ std::ops::Sub::<Output = T>
-	+ std::fmt::Display
-	+ std::fmt::Debug
-	+ std::cmp::PartialOrd
-{
-	pub fn new(_id: String, _duration: T, _dependencies: Vec<String>) -> Self {
-		CustomTask {
-			id: _id,
-			duration: _duration,
-			dependencies: _dependencies,
-			early_start: None,
-			early_finish: None,
-			late_start: None,
-			late_finish: None,
-		}
-	}
-}
-*/
-
 impl <T> CustomTask<T>
 where T: From<i8>
 	+ std::clone::Clone
@@ -72,19 +50,7 @@ where T: From<i8>
 			late_finish: None,
 		}
 	}
-}
 
-impl <T> CustomTask<T>
-where T: From<i8>
-	+ std::clone::Clone
-	+ std::marker::Copy
-	+ std::ops::Sub::<Output = T>
-	+ std::ops::Add<Output = T>
-	+ std::fmt::Display
-	+ std::fmt::Debug
-	+ std::cmp::PartialOrd
-	+ std::ops::AddAssign
-{
 	pub fn get_id(&self) -> String {
 		self.id.clone()
 	}
