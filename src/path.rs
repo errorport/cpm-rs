@@ -3,29 +3,49 @@ use crate::customtask::CustomTask;
 /// Represents a path of tasks.
 /// It is a copy of an original path in the graph.
 #[derive(Debug, Clone)]
-pub struct Path {
+pub struct Path<T>
+where T: From<i8>
+	+ std::clone::Clone
+	+ std::marker::Copy
+	+ std::ops::Sub::<Output = T>
+	+ std::ops::Add<Output = T>
+	+ std::fmt::Display
+	+ std::fmt::Debug
+	+ std::cmp::PartialOrd
+	+ std::ops::AddAssign
+{
 	/// Vector of tasks.
-	tasks: Vec<CustomTask>,
+	tasks: Vec<CustomTask<T>>,
 }
 
-impl Path {
+impl <T> Path<T>
+where T: From<i8>
+	+ std::clone::Clone
+	+ std::marker::Copy
+	+ std::ops::Sub::<Output = T>
+	+ std::ops::Add<Output = T>
+	+ std::fmt::Display
+	+ std::fmt::Debug
+	+ std::cmp::PartialOrd
+	+ std::ops::AddAssign
+{
 	pub fn new() -> Self {
 		Path {
 			tasks: vec!{},
 		}
 	}
 
-	pub fn new_from_vec(_tasks: Vec<CustomTask>) -> Self {
+	pub fn new_from_vec(_tasks: Vec<CustomTask<T>>) -> Self {
 		Path {
 			tasks: _tasks.clone(),
 		}
 	}
 
-	pub fn add_task(&mut self, task: &CustomTask) {
+	pub fn add_task(&mut self, task: &CustomTask<T>) {
 		self.tasks.push(task.clone());
 	}
 
-	pub fn join_path(&mut self, path: &Path) {
+	pub fn join_path(&mut self, path: &Path<T>) {
 		for task in &path.tasks {
 			self.add_task(&task);
 		}
@@ -34,10 +54,10 @@ impl Path {
 	/// Gets the total float of the path.
 	/// If the total float is zero, than the path is probably a
 	/// critical path.
-	pub fn get_total_float(&self) -> i64 {
-		let mut total_float: i64 = 0;
+	pub fn get_total_float(&self) -> T {
+		let mut total_float: T = 0.into();
 		for task in &self.tasks {
-			total_float += task.get_total_float();
+			total_float += task.get_total_float().unwrap(); // TODO check this unwrap
 		}
 		total_float
 	}
@@ -63,8 +83,8 @@ impl Path {
 	}
 
 	/// Gets the duration of the path.
-	pub fn get_dur(&self) -> u32 {
-		let mut dur = 0;
+	pub fn get_dur(&self) -> T {
+		let mut dur = 0.into();
 		for task in &self.tasks {
 			dur += task.get_duration()
 		}

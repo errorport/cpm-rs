@@ -24,7 +24,7 @@ static DEPENDENCY_NAME_PATTERN: &str
 static TASK_DEFINITION_PATTERN: &str
 	= r"([NAME_PAT]+)\s*\(([-+]?\d+)\)(\s+after\s+\[([NAME_PAT\s,]*)\])?";
 
-pub fn parse_input_file(filename: &String) -> Result<Vec<CustomTask>, String> {
+pub fn parse_input_file(filename: &String) -> Result<Vec<CustomTask<i64>>, String> {
 	let task_def_str = TASK_DEFINITION_PATTERN.to_string()
 		.replace("NAME_PAT", TASK_NAME_PATTERN);
 	let dependency_def_str = DEPENDENCY_NAME_PATTERN.to_string()
@@ -33,7 +33,7 @@ pub fn parse_input_file(filename: &String) -> Result<Vec<CustomTask>, String> {
 	let task_definition: Regex = Regex::new(task_def_str.as_str()).unwrap();
 	let dependency_definition: Regex = Regex::new(dependency_def_str.as_str()).unwrap();
 
-	let mut task_list: Vec<CustomTask> = vec!{};
+	let mut task_list: Vec<CustomTask<i64>> = vec!{};
 
 	//println!("Input file: {}", filename);
 	let contents: String;
@@ -60,7 +60,7 @@ pub fn parse_input_file(filename: &String) -> Result<Vec<CustomTask>, String> {
 			dependencies.push(dep_name[1].to_string());
 		}
 
-		let task = CustomTask::new(id, duration, dependencies);
+		let task = CustomTask::new(id, duration.into(), dependencies);
 		//println!("Task: {:?}", task);
 		leftover = leftover.replacen(&cap[0], "", 1);
 		task_list.push(task);

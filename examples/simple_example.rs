@@ -7,7 +7,7 @@ use cpm_rs::{scheduler::Scheduler, customtask::CustomTask};
 #[allow(unused_must_use)]
 
 fn main() {
-	let mut scheduler = Scheduler::new();
+	let mut scheduler = Scheduler::<i32>::new();
 	scheduler.add_task(CustomTask::new(
 		"Task_A".to_string()
 		, 1
