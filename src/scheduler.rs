@@ -46,6 +46,7 @@ where T: From<i8>
 	+ std::ops::AddAssign
 {
 	pub fn new() -> Self {
+		env_logger::init();
 		Scheduler {
 			tasks: HashMap::new(),
 			state: SchedulerState::Unknown,
@@ -54,16 +55,17 @@ where T: From<i8>
 
 	/// Ignites all the calculations.
 	pub fn schedule(&mut self) -> Result<(), String>{
-		self.calculate();
+		self.calculate()?;
 		self.print_output();
-		return Ok(());
+		Ok(())
 	}
 
 	/// Recalculate all parameters without providing new tasks.
-	pub fn calculate(&mut self) {
-		self.calculate_es_ef();
-		self.calculate_ls_lf();
+	pub fn calculate(&mut self) -> Result<(), String> {
+		self.calculate_es_ef()?;
+		self.calculate_ls_lf()?;
 		self.state = SchedulerState::Ready;
+		Ok(())
 	}
 
 	pub fn add_task(&mut self, task: CustomTask<T>) -> Result<(), String> {
@@ -131,11 +133,12 @@ where T: From<i8>
 	}
 
 	// TODO: optimize
-	fn calculate_es_ef(&mut self) {
+	fn calculate_es_ef(&mut self) -> Result<(), String> {
+		debug!("Calculating ES-EF *************************");
 		let mut sorting_list = self.tasks.clone();
 		loop {
 			for (id, task) in sorting_list.clone() {
-				//println!("Task taken: {}", id);
+				debug!("Task taken: {}", id);
 				let deps = self.get_task_dependencies(&task);
 				let successor_count = self.get_task_successors(&task).len();
 
@@ -150,7 +153,7 @@ where T: From<i8>
 							).expect("Could not set early finish.");
 						}
 					}
-					//println!("ESEF SP calculated: \n{:?}", self.get_task_by_name(&id));
+					debug!("ESEF SP calculated: \n{:?}", self.get_task_by_name(&id));
 				} else {
 					let mut max_dep_ef: T = 0.into();
 					let mut invalid_deps = 0;
@@ -159,11 +162,16 @@ where T: From<i8>
 							invalid_deps += 1;
 							break;
 						}
-						if dep.get_early_finish().unwrap() > max_dep_ef {
-							max_dep_ef = dep.get_early_finish().unwrap(); // TODO
+						match dep.get_early_finish() {
+							None => {
+								return Err("Uncalculated early finish found.".to_string());
+							},
+							Some(ef) => {
+								max_dep_ef = max_dep_ef.max(ef);
+							},
 						}
 					}
-					//println!("Invalid deps: {}", invalid_deps);
+					debug!("Invalid deps: {}", invalid_deps);
 					if invalid_deps == 0 {
 						match self.get_mut_task_by_name(&id) {
 							None => {},
@@ -175,13 +183,13 @@ where T: From<i8>
 								).expect("Could not set early finish.");
 							}
 						}
-						//println!("ESEF calculated: \n{:?}", self.get_task_by_name(&id));
+						debug!("ESEF calculated: \n{:?}", self.get_task_by_name(&id));
 					} else {
 						continue;
 					}
 				}
 				if successor_count == 0 {
-					// TODO check these unwraps
+					debug!("No successors found for {}", id);
 					match self.get_mut_task_by_name(&id) {
 						None => { },
 						Some(original_task) => {
@@ -193,53 +201,67 @@ where T: From<i8>
 							).expect("Could not set late start.");
 						}
 					}
-					//println!("ESEF EP calculated: \n{:?}", self.get_task_by_name(&id));
+					debug!("ESEF EP calculated: \n{:?}", self.get_task_by_name(&id));
 				}
 				sorting_list.remove(&id);
 				break;
 			}
 			if sorting_list.len() == 0 { break; }
 		}
+		Ok(())
 	}
 
 	// TODO: optimize
-	fn calculate_ls_lf(&mut self) {
+	fn calculate_ls_lf(&mut self) -> Result<(), String> {
+		debug!("Calculating LS-LF *************************");
 		let mut sorting_list = self.tasks.clone();
 		loop {
 			for (id, task) in sorting_list.clone() {
+				debug!("Task taken: {}", id);
 				let successors = self.get_task_successors(&task);
-				let mut invalid_successors = 0;
 				if successors.len() > 0 {
-					let mut min_successor_ls: T = 0.into();
+					let mut min_successor_ls: Option<T> = None;
 					for successor in successors {
 						match successor.get_late_start() {
 							None => {
-								invalid_successors += 1;
+								min_successor_ls = None;
 								break;
 							},
 							Some(ls) => {
-								if min_successor_ls > 0.into() {
-									min_successor_ls.min(ls);
-								} else {
-									min_successor_ls = ls;
+								if ls < 0.into() {
+									min_successor_ls = None;
+									break;
+								}
+								match min_successor_ls {
+									None => {
+										min_successor_ls = Some(ls);
+									},
+									Some(current_min) => {
+										let min = current_min.min(ls);
+										min_successor_ls = Some(min);
+									}
 								}
 							},
 						}
+						debug!("min ls: {:?}", min_successor_ls);
 					}
-					if invalid_successors == 0 {
-						match self.get_mut_task_by_name(&task.get_id()) {
-							None => {}, // TODO
-							Some(original_task) => {
-								original_task.set_late_finish(min_successor_ls)
-									.expect("Could not set late finish.");
-								original_task.set_late_start(
-									min_successor_ls - original_task.get_duration()
-								).expect("Could not set late start.");
+					match min_successor_ls {
+						Some(min) => {
+							match self.get_mut_task_by_name(&task.get_id()) {
+								None => {}, // TODO
+								Some(original_task) => {
+									original_task.set_late_finish(min)
+										.expect("Could not set late finish.");
+									original_task.set_late_start(
+										min - original_task.get_duration()
+									).expect("Could not set late start.");
+								}
 							}
-						}
-						//println!("LSLF calculated: \n{:?}", original_task);
-						sorting_list.remove(&id);
-						break;
+							debug!("LSLF calculated: \n{:?}", id);
+							sorting_list.remove(&id);
+							break;
+						},
+						None => {},
 					}
 				} else {
 					sorting_list.remove(&id);
@@ -248,6 +270,7 @@ where T: From<i8>
 			}
 			if sorting_list.len() == 0 { break; }
 		}
+		Ok(())
 	}
 
 	/// Get all the entry points of the graph.

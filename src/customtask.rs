@@ -129,7 +129,7 @@ where T: From<i8>
 	}
 
 	pub fn set_late_finish(&mut self, lf: T) -> Result<(), String> {
-		if lf > 0.into() {
+		if lf >= 0.into() {
 			self.late_finish = Some(lf);
 		} else {
 			return Err(
