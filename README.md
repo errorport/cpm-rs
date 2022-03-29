@@ -9,10 +9,10 @@ Single crate for Critical Path Method calculation.
 - File parser for predefined tasks. (May be removed later.)
 - Critical path calculation.
 - Calculation of number of maximum parallel tasks at a time.
+- Indexed integer or floating point time units.
 
 ## Future functionality
 
-- Time unit type templates. (integer / float / std::time)
 - Dependency circle check.
 - Shiftable tasks.
 - Graph visualization.
@@ -50,7 +50,7 @@ fn main() {
 ```rust
 
 fn main() {
-    let mut scheduler = Scheduler::new();
+    let mut scheduler = Scheduler<i32>::new();
     scheduler.add_task(CustomTask::new(
         "Task_A".to_string()
         , 1

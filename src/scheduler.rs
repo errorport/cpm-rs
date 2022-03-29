@@ -134,7 +134,7 @@ where T: From<i8>
 
 	// TODO: optimize
 	fn calculate_es_ef(&mut self) -> Result<(), String> {
-		debug!("Calculating ES-EF *************************");
+		debug!("Calculating ES-EF");
 		let mut sorting_list = self.tasks.clone();
 		loop {
 			for (id, task) in sorting_list.clone() {
@@ -216,7 +216,7 @@ where T: From<i8>
 
 	// TODO: optimize
 	fn calculate_ls_lf(&mut self) -> Result<(), String> {
-		debug!("Calculating LS-LF *************************");
+		debug!("Calculating LS-LF");
 		let mut sorting_list = self.tasks.clone();
 		loop {
 			for (id, task) in sorting_list.clone() {
