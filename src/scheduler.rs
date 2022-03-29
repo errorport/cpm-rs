@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::cmp::Ordering::Equal;
+
 use crate::customtask::CustomTask;
 use crate::path::Path;
 
@@ -26,7 +28,6 @@ where T: From<i8>
 	+ std::fmt::Display
 	+ std::fmt::Debug
 	+ std::cmp::PartialOrd
-	+ std::cmp::Ord
 	+ std::ops::AddAssign
 {
 	tasks: HashMap<String, CustomTask<T>>,
@@ -42,7 +43,6 @@ where T: From<i8>
 	+ std::fmt::Display
 	+ std::fmt::Debug
 	+ std::cmp::PartialOrd
-	+ std::cmp::Ord
 	+ std::ops::AddAssign
 {
 	pub fn new() -> Self {
@@ -167,7 +167,10 @@ where T: From<i8>
 								return Err("Uncalculated early finish found.".to_string());
 							},
 							Some(ef) => {
-								max_dep_ef = max_dep_ef.max(ef);
+								//max_dep_ef = max_dep_ef.max(ef);
+								if ef > max_dep_ef {
+									max_dep_ef = ef;
+								}
 							},
 						}
 					}
@@ -237,8 +240,11 @@ where T: From<i8>
 										min_successor_ls = Some(ls);
 									},
 									Some(current_min) => {
-										let min = current_min.min(ls);
-										min_successor_ls = Some(min);
+										if current_min < ls {
+											min_successor_ls = Some(current_min);
+										} else {
+											min_successor_ls = Some(ls);
+										}
 									}
 								}
 							},
@@ -385,7 +391,8 @@ where T: From<i8>
 				}
 			}
 			ef_list.dedup();
-			ef_list.sort();
+			//ef_list.sort();
+			ef_list.sort_by(|a, b| a.partial_cmp(b).unwrap_or(Equal));
 			for ef_idx in 0..ef_list.len() - 1 {
 				let section_start = ef_list[ef_idx].unwrap();
 				let section_end = ef_list[ef_idx + 1].unwrap();
