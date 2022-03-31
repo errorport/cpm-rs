@@ -365,13 +365,14 @@ where T: From<i8>
 				critical_paths.push(path);
 			}
 		}
+		debug!("Critical paths: {:?}", critical_paths.len());
 		critical_paths
-		//println!("Critical paths: {:?}", self.critical_paths.len());
 	}
 
 	/// Calculates the maximum number of parallel jobs at a time.
 	/// Scheduler has to be in ready state.
 	pub fn get_parallelism(&self) -> Result<u32, String> {
+		debug!("Getting parallel task count:");
 		if self.state == SchedulerState::Ready {
 			let mut ef_list: Vec<Option<T>> = vec!{Some(0.into())};
 			let mut max_parallel = 0;
@@ -391,7 +392,6 @@ where T: From<i8>
 				}
 			}
 			ef_list.dedup();
-			//ef_list.sort();
 			ef_list.sort_by(|a, b| a.partial_cmp(b).unwrap_or(Equal));
 			for ef_idx in 0..ef_list.len() - 1 {
 				let section_start = ef_list[ef_idx].unwrap();
@@ -403,8 +403,8 @@ where T: From<i8>
 					).collect::<Vec<(&String, &CustomTask<T>)>>();
 				if section_parallel.len() > max_parallel {
 					max_parallel = section_parallel.len();
-					//println!("section: {} .. {}", section_start, section_end);
-					//println!("section tasks: {:?}", section_parallel);
+					debug!("Section: {} .. {}", section_start, section_end);
+					debug!("section tasks: {:?}", section_parallel);
 				}
 			}
 			return Ok(max_parallel.try_into().unwrap());

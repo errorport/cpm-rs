@@ -13,6 +13,8 @@ pub mod scheduler;
 /// Input file parser.
 pub mod input_parser;
 
+mod tests;
+
 pub use crate::customtask::CustomTask;
 pub use crate::path::Path;
 pub use crate::scheduler::Scheduler;
