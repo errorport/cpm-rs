@@ -55,7 +55,7 @@ where T: From<i8>
 	/// Ignites all the calculations.
 	pub fn schedule(&mut self) -> Result<(), String>{
 		self.calculate()?;
-		self.print_output();
+		// self.print_output();
 		Ok(())
 	}
 
