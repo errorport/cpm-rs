@@ -46,7 +46,6 @@ where T: From<i8>
 	+ std::ops::AddAssign
 {
 	pub fn new() -> Self {
-		env_logger::init();
 		Scheduler {
 			tasks: HashMap::new(),
 			state: SchedulerState::Unknown,
@@ -56,7 +55,7 @@ where T: From<i8>
 	/// Ignites all the calculations.
 	pub fn schedule(&mut self) -> Result<(), String>{
 		self.calculate()?;
-		self.print_output();
+		// self.print_output();
 		Ok(())
 	}
 
